@@ -71,16 +71,16 @@ class XboxSpider(scrapy.Spider):
                     price = 'View Game'
             link = game.css('a::attr(href)').get()
             image_url = game.css('img::attr(src)').get()
-
-            game_data = {
-                'name': name,
-                'price': price,
-                'link': link,
-                'image_url': image_url,
-            }
-            self.scraped_data.append(game_data)
-            self.xbox_games_data.append(game_data)
-            yield game_data
+            if price!='Price not available':
+                game_data = {
+                    'name': name,
+                    'price': price,
+                    'link': link,
+                    'image_url': image_url,
+                }
+                self.scraped_data.append(game_data)
+                self.xbox_games_data.append(game_data)
+                yield game_data
 
 
 
@@ -91,28 +91,32 @@ class XboxSpider(scrapy.Spider):
             self.logger.info("No games found on Amazon page.")
         else:
             self.logger.info(f"Found {len(games)} games on Amazon page.")
+        game_number=0
+        while game_number < 10:
+            for game in games:
+                name = game.css('h2 span.a-text-normal::text').get()
+                price_whole = game.css('span.a-price-whole::text').get()
+                price_fraction = game.css('span.a-price-fraction::text').get()
+                link = game.css('h2 a.a-link-normal::attr(href)').get()
+                image_url = game.css('img.s-image::attr(src)').get()
+                game_number+=1
+                if price_whole:  # Ensure price_whole is not None
+                    price = price_whole + '.' +  (price_fraction if price_fraction else '')
+                    price='$'+price
+                    if name and link:
+                        game_data = {
+                            'name': name,
+                            'price': price,
+                            'link': response.urljoin(link),
+                            'image_url': image_url,
+                        }
+                        self.scraped_data.append(game_data)
 
-        for game in games:
-            name = game.css('h2 span.a-text-normal::text').get()
-            price_whole = game.css('span.a-price-whole::text').get()
-            price_fraction = game.css('span.a-price-fraction::text').get()
-            link = game.css('h2 a.a-link-normal::attr(href)').get()
-            image_url = game.css('img.s-image::attr(src)').get()
-            if price_whole:  # Ensure price_whole is not None
-                price = price_whole + '.' +  (price_fraction if price_fraction else '')
-                if name and link:
-                    game_data = {
-                        'name': name,
-                        'price': price,
-                        'link': response.urljoin(link),
-                        'image_url': image_url,
-                    }
-                    self.scraped_data.append(game_data)
-
-                    self.amazon_games_data.append(game_data)
-                    yield game_data
+                        self.amazon_games_data.append(game_data)
+                        yield game_data
     
     def closed(self, reason):
+        self.driver.quit()
         with open(self.output_file, 'w') as f:
             json.dump(self.scraped_data, f)
 
