@@ -27,6 +27,7 @@ class XboxSpider(scrapy.Spider):
         self.game_name_bestbuy = search_query.replace(' ', '+')
         self.xbox_games_data = []
         self.amazon_games_data = []
+        self.bestbuy_scraped_list = []
         self.scraped_data = []
 
         options = webdriver.ChromeOptions()
@@ -41,10 +42,12 @@ class XboxSpider(scrapy.Spider):
     def start_requests(self):
         xbox_url = f"https://www.xbox.com/en-us/Search/Results?q={self.game_name_xbox}"
         amazon_url = f"https://www.amazon.com/s?k={self.game_name_amazon}+xbox+game"
-        # Add other URLs if needed
+        bestbuy_url = f"https://www.bestbuy.com/site/searchpage.jsp?st={self.search_query.replace(' ', '+')}+xbox&_dyncharset=UTF-8&_dynSessConf=&id=pcat17071&type=page&sc=Global&cp=1&nrp=&sp=&qp=&list=n&af=true&iht=y&usc=All+Categories&ks=960&keys=keys&intl=nosplash"
 
         yield scrapy.Request(xbox_url, callback=self.parse, headers=self.headers)
         yield scrapy.Request(amazon_url, callback=self.parse_amazon, headers=self.headers)
+        yield scrapy.Request(bestbuy_url, callback=self.parse_bestbuy, headers=self.headers)
+
 
     def parse(self, response):
         self.driver.get(response.url)
@@ -114,7 +117,28 @@ class XboxSpider(scrapy.Spider):
 
                         self.amazon_games_data.append(game_data)
                         yield game_data
-    
+
+
+    def parse_bestbuy(self, response):
+        # Parse product information from Best Buy using CSS selectors
+        products = response.css('li.sku-item')
+        for product in products:
+            name = product.css('h4.sku-title a::text').get()
+            price = product.css('div.priceView-hero-price span::text').get()
+            image_url = product.css('img.product-image::attr(src)').get()  # Assuming an `img.product-image` element exists
+            link = product.css('h4.sku-title a::attr(href)').get()
+            if name and price and image_url and link:  # Check for all necessary data
+                game_data = {
+                    'name': name,
+                    'price': price,
+                    'link': response.urljoin(link),  # Construct absolute URL from relative link
+                    'image_url': image_url
+                }
+                self.scraped_data.append(game_data)
+                self.bestbuy_scraped_list.append(game_data)
+                yield game_data
+
+
     def closed(self, reason):
         self.driver.quit()
         with open(self.output_file, 'w') as f:

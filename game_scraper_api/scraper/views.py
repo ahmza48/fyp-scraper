@@ -297,7 +297,7 @@ import json
 import os
 import threading
 import logging
-from games_scraper.games_scraper.spiders import playstation_spider, xbox_spider
+from games_scraper.games_scraper.spiders import playstation_spider, xbox_spider,pc_spider
 from twisted.internet import reactor
 from twisted.internet.task import react
 
@@ -329,6 +329,8 @@ class ScrapeGameView(View):
             spider_class = playstation_spider.PlaystationSpider
         elif spider_name == 'xbox_spider':
             spider_class = xbox_spider.XboxSpider
+        elif spider_name == 'pc_spider':
+            spider_class = pc_spider.PCSpider
         else:
             raise Exception(f"Spider '{spider_name}' not found.")
 

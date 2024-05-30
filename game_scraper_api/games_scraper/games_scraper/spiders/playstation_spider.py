@@ -149,7 +149,8 @@ class PlaystationSpider(scrapy.Spider):
 
         self.playstation_scraped_list = []
         self.amazon_scraped_list = []
-        # self.bestbuy_scraped_list = []
+        self.bestbuy_scraped_list = []
+
     # def start_requests(self):
     #     url = f'https://store.playstation.com/en-us/search/{self.search_query}'
     #     yield scrapy.Request(url, self.parse)
@@ -157,15 +158,14 @@ class PlaystationSpider(scrapy.Spider):
     def start_requests(self):
             play_station_url = f"https://store.playstation.com/en-us/search/{self.game_name_playstation}"
             amazon_url = f"https://www.amazon.com/s?k={self.game_name_amazon}+playstation+game"
-
+            bestbuy_url = f"https://www.bestbuy.com/site/searchpage.jsp?st={self.search_query.replace(' ', '+')}+playstation&_dyncharset=UTF-8&_dynSessConf=&id=pcat17071&type=page&sc=Global&cp=1&nrp=&sp=&qp=&list=n&af=true&iht=y&usc=All+Categories&ks=960&keys=keys&intl=nosplash"
             yield scrapy.Request(play_station_url, callback=self.parse_playstation)
             yield scrapy.Request(amazon_url, callback=self.parse_amazon, headers=self.headers)
-            # bestbuy_url = f"https://www.bestbuy.com/site/searchpage.jsp?st={self.game_name_bestbuy}"
-            # yield scrapy.Request(bestbuy_url, callback=self.parse_bestbuy, headers=self.headers)
+            yield scrapy.Request(bestbuy_url, callback=self.parse_bestbuy, headers=self.headers)
+            
 
-
-    playstation_scraped_list = []
-    amazon_scraped_list = []
+    # playstation_scraped_list = []
+    # amazon_scraped_list = []
     # bestbuy_scraped_list = []
    
     # my working code
@@ -235,6 +235,24 @@ class PlaystationSpider(scrapy.Spider):
                         self.amazon_scraped_list.append(game_data)
                         yield game_data
 
+    def parse_bestbuy(self, response):
+        # Parse product information from Best Buy using CSS selectors
+        products = response.css('li.sku-item')
+        for product in products:
+            name = product.css('h4.sku-title a::text').get()
+            price = product.css('div.priceView-hero-price span::text').get()
+            image_url = product.css('img.product-image::attr(src)').get()  # Assuming an `img.product-image` element exists
+            link = product.css('h4.sku-title a::attr(href)').get()
+            if name and price and image_url and link:  # Check for all necessary data
+                game_data = {
+                    'name': name,
+                    'price': price,
+                    'link': response.urljoin(link),  # Construct absolute URL from relative link
+                    'image_url': image_url
+                }
+                self.scraped_data.append(game_data)
+                self.bestbuy_scraped_list.append(game_data)
+                yield game_data
 
 
     def closed(self, reason):
